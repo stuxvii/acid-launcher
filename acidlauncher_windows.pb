@@ -1,4 +1,4 @@
-﻿EnableExplicit
+EnableExplicit
 
 Global.s workingDirectory = RTrim(GetPathPart(ProgramFilename()), "\")
 Global.s tempDirectory = GetTemporaryDirectory()
@@ -31,7 +31,6 @@ Define.i downloadMissingLibraries, jsonArgumentsMember, jsonArgumentsModernMembe
 Define.i downloadMissingLibrariesGadget, downloadThreadsGadget, asyncDownloadGadget, saveSettingsButton, useCustomJavaGadget, useCustomParamsGadget, keepLauncherOpenGadget, LauncherLayoutChangeGadget, LauncherLayoutChange
 Define.i i
 
-; Set some default variables for config, fields, etc
 
 Define.s playerNameDefault = "chickenjockey", ramAmountDefault = "1024", javaBinaryPathDefault = "C:\jre8\bin\javaw.exe"
 Define.s customLaunchArgumentsDefault = "-Xss1M -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M"
@@ -47,7 +46,6 @@ Define.i keepLauncherOpenDefault = 0
 Global.i useCustomJavaDefault = 0
 Define.i LauncherLayoutChange = 0
 Define.i language = 0
-
 ; Version and developer settings, probably should actually start updating it instead of just staying the same shit all the damn time
 Define.s launcherVersion = "2.0"
 Define.s launcherDeveloper = "acidbox's take"
@@ -582,7 +580,7 @@ If OpenWindow(0, #PB_Ignore, #PB_Ignore, windowWidth, windowHeight, "Acid Launch
             
             downloadThread = CreateThread(@downloadFiles(), GetGadgetState(downloadAllFilesGadget))
           Else
-            MessageRequester("Download Error", "Seems like you have no internet connection!")
+            MessageRequester(stringNoInternetTitle, stringNoInternet)
           EndIf
         Case settingsButton
           DisableGadget(settingsButton, 1)
@@ -714,13 +712,10 @@ If OpenWindow(0, #PB_Ignore, #PB_Ignore, windowWidth, windowHeight, "Acid Launch
       EndIf
     EndIf
     
-    
-    
   Until Event = #PB_Event_CloseWindow And EventWindow() = 0
   
   DeleteFile(tempDirectory + "acid_download_list.txt")
 EndIf
-
 
 Procedure findInstalledVersions()
   Define.s dirName, chosenVer = ReadPreferenceString("ChosenVer", "")
@@ -1211,13 +1206,3 @@ Procedure.s removeSpacesFromVersionName(clientVersion.s)
   
   ProcedureReturn newVersionName
 EndProcedure
-; IDE Options = PureBasic 6.20 (Windows - x64)
-; CursorPosition = 149
-; Folding = --
-; Optimizer
-; EnableXP
-; SharedUCRT
-; UseIcon = appicon.ico
-; Executable = ..\..\home\liam\Downloads\dfsadsa\FirstRelease.exe
-; Compiler = PureBasic 6.20 - C Backend (Windows - x64)
-; Debugger = Standalone
