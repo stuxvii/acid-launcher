@@ -1,4 +1,4 @@
-EnableExplicit
+﻿EnableExplicit
 
 Global.s workingDirectory = RTrim(GetPathPart(ProgramFilename()), "\")
 Global.s tempDirectory = GetTemporaryDirectory()
@@ -57,7 +57,7 @@ Declare findInstalledVersions()
 Declare downloadFiles(downloadAllFiles.i)
 Declare CreateDirectoryRecursive(path.s)
 Declare getFabric(clientVersion)
-
+Declare generateProfileJson()
 Declare.s parseVersionsManifest(versionType.i = 0, getClientJarUrl.i = 0, clientVersion.s = "")
 Declare.s parseLibraries(clientVersion.s, prepareForDownload.i = 0, librariesString.s = "")
 Declare.s fileRead(pathToFile.s)
@@ -462,18 +462,21 @@ If OpenWindow(0, #PB_Ignore, #PB_Ignore, windowWidth, windowHeight, "Acid Launch
         Case setupMods
           Define.s tempdir
           tempdir = GetTemporaryDirectory()
-          Define.s savepath = tempdir + "fabric-installer-latest.jar"
+          Define.s savepath = tempdir + "fil.jar"
           Define.s jsonsavepath = tempdir + "fabric.json"
           Define.s jsoncontent
           Define.s latestURL, l
-          Define.s javaPath, outputs, launchdir
-          Define.i progrun
+          Define.s javaPath, outputs, holdmybeer, launchdir
+          Define.i progrun, launchdirlength
           Define.i result
           result = ReceiveHTTPFile("https://meta.fabricmc.net/v2/versions/installer", jsonsavepath); listen. if you come at me, yelling because i didn't implement a system to check if it was all already downloaded. shut up. it's a 200kb file you're not on fucking dial-up
           progrun = RunProgram("cmd", "/c where java", "", #PB_Program_Open | #PB_Program_Read)
           outputs = ReadProgramString(progrun)
           javaPath = Trim(outputs)
-          launchdir = GetPathPart(ProgramFilename())
+          holdmybeer = GetPathPart(ProgramFilename())
+          launchdirlength = Len(holdmybeer)
+          launchdir = Mid(holdmybeer, 1, launchdirlength - 1)
+          Debug launchdir
           If PathFileExists_("versions/" + GetGadgetText(versionsDownloadGadget))
             If result
               If ReadFile(1, jsonsavepath)
@@ -486,8 +489,9 @@ If OpenWindow(0, #PB_Ignore, #PB_Ignore, windowWidth, windowHeight, "Acid Launch
                   urlEnd = FindString(latestUrl, Chr(34))
                   latestURL = Mid(jsoncontent, urlStart, urlEnd - 1)
                   If ReceiveHTTPFile(latestURL, savepath)
-                    If RunProgram(Chr(34) + javaPath + Chr(34) + " -jar " + Chr(34) + savepath + Chr(34) + " client -dir " + launchdir + " -mcversion " + GetGadgetText(versionsDownloadGadget))
+                    If RunProgram(Chr(34) + javaPath + Chr(34) + " -jar " + Chr(34) + savepath + Chr(34) + " client -dir " + Chr(34) + launchdir + Chr(34) + " -mcversion " + GetGadgetText(versionsDownloadGadget))
                       MessageRequester("Success!", stringInstallSuccess)
+                      Debug Chr(34) + javaPath + Chr(34) + " -jar " + Chr(34) + savepath + Chr(34) + " client -dir " + Chr(34) + Chr(34) + launchdir + Chr(34) + Chr(34) + " -mcversion " + GetGadgetText(versionsDownloadGadget)
                       CloseFile(1)
                     Else
                       MessageRequester("Error", strp1CantRunInstaller + #CRLF$ + Chr(34) + javaPath + Chr(34) + " -jar " + Chr(34) + savepath + Chr(34) + " client -dir " + launchdir + " -mcversion " + GetGadgetText(versionsDownloadGadget) + strp2CantRunInstaller)
@@ -756,6 +760,8 @@ Procedure findInstalledVersions()
     
     DisableGadget(playButton, 1)
     DisableGadget(versionsGadget, 1) : AddGadgetItem(versionsGadget, 0, stringFindInstalledVersions) : SetGadgetState(versionsGadget, 0)
+  Else
+    generateProfileJson()
   EndIf
 EndProcedure
 
@@ -1195,6 +1201,33 @@ Procedure assetsToResources(assetsIndex.s)
     
     FreeJSON(jsonFile)
   EndIf
+EndProcedure
+
+Procedure generateProfileJson()
+  Protected.s fileName = "launcher_profiles.json"
+  Protected.i file
+  Protected.i lastProfilesJsonSize = ReadPreferenceInteger("LastProfilesJsonSize", 89)
+  Protected.i fileSize = FileSize(fileName)
+
+  If fileSize <= 0
+    DeleteFile(fileName)
+    file = OpenFile(#PB_Any, fileName)
+
+    If file
+      WriteString(file, "{ " + Chr(34) + "profiles" + Chr(34) + ": { " + Chr(34) + "justProfile" + Chr(34) + ": { " + Chr(34) + "name" + Chr(34) + ": " + Chr(34) + "justProfile" + Chr(34) + ", ")
+      WriteString(file, Chr(34) + "lastVersionId" + Chr(34) + ": " + Chr(34) + "1.12.2" + Chr(34) + " } } }" + #CRLF$)
+
+      CloseFile(file)
+    EndIf
+  EndIf
+
+  fileSize = FileSize(fileName)
+
+  If fileSize <> lastProfilesJsonSize
+    forceDownloadMissingLibraries = 1
+  EndIf
+
+  WritePreferenceInteger("LastProfilesJsonSize", fileSize)
 EndProcedure
 
 Procedure.s removeSpacesFromVersionName(clientVersion.s)
