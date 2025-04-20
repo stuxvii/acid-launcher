@@ -1,4 +1,4 @@
-EnableExplicit
+﻿EnableExplicit
 
 Global.s workingDirectory = RTrim(GetPathPart(ProgramFilename()), "/")
 Global.s tempDirectory = GetTemporaryDirectory()
@@ -459,12 +459,10 @@ If OpenWindow(0, #PB_Ignore, #PB_Ignore, windowWidth, windowHeight, "Acid Launch
           Define.s jsoncontent
           Define.s latestURL, l
           Define.s javaPath, outputs, launchdir
-          Define.i progrun
           Define.i result
           result = ReceiveHTTPFile("https://meta.fabricmc.net/v2/versions/installer", jsonsavepath); listen. if you come at me, yelling because i didn't implement a system to check if it was all already downloaded. shut up. it's a 200kb file you're not on fucking dial-up
-          progrun = RunProgram("cmd", "/c where java", "", #PB_Program_Open | #PB_Program_Read)
           javaPath = Trim(outputs)
-          launchdir = GetPathPart(ProgramFilename())
+          launchdir = GetCurrentDirectory()
           If Not FileSize("versions/" + GetGadgetText(versionsDownloadGadget)) = -1
             If result
               If ReadFile(1, jsonsavepath)
@@ -477,232 +475,237 @@ If OpenWindow(0, #PB_Ignore, #PB_Ignore, windowWidth, windowHeight, "Acid Launch
                   urlEnd = FindString(latestUrl, Chr(34))
                   latestURL = Mid(jsoncontent, urlStart, urlEnd - 1)
                   If ReceiveHTTPFile(latestURL, savepath)
-                    If RunProgram(Chr(34) + "/usr/bin/java" + Chr(34) + " -jar " + Chr(34) + savepath + Chr(34) + " client -dir " + launchdir + " -mcversion " + GetGadgetText(versionsDownloadGadget))
+                    Define.i cmd = RunProgram("/usr/bin/java", " -jar " + Chr(34) + savepath + Chr(34) + " client -dir " + Chr(34) + launchdir + Chr(34) + " -mcversion " + GetGadgetText(versionsDownloadGadget), launchdir, #PB_Program_Open)
+                    If cmd
+                      While ProgramRunning(cmd)
+                        Define.i dsadsa
+                        dsadsa = ProgramID(cmd)
+                        DisableGadget(setupMods, #True)
+                      Wend
+                      DisableGadget(setupMods, #False)
                       MessageRequester("Success!", stringInstallSuccess)
-                      CloseFile(1)
-                    Else
-                      MessageRequester("Error", strp1CantRunInstaller + #CRLF$ + "/usr/bin/java" + " -jar " + Chr(34) + savepath + Chr(34) + " client -dir " + launchdir + " -mcversion " + GetGadgetText(versionsDownloadGadget) + strp2CantRunInstaller)
                       CloseFile(1)
                     EndIf
                   Else
-                    MessageRequester("Error", stringCantDownloadFabric)
-                  EndIf 
-                EndIf
-              Else
-                MessageRequester("Error", stringCantFindJSON)
+                    MessageRequester("Error", strp1CantRunInstaller + #CRLF$ + cmd + strp2CantRunInstaller)
+                    CloseFile(1)
+                  EndIf
+                Else
+                  MessageRequester("Error", stringCantDownloadFabric)
+                EndIf 
               EndIf
             Else
-              MessageRequester("Error", "Couldn't fetch fabric.json. Check your internet?")
+              MessageRequester("Error", stringCantFindJSON)
             EndIf
           Else
             MessageRequester("Error", "Select the version you wish to mod. (Must be downloaded already)")
           EndIf
-        Case downloadVersionButton
-          versionToDownload = GetGadgetText(versionsDownloadGadget)
+      Case downloadVersionButton
+        versionToDownload = GetGadgetText(versionsDownloadGadget)
+        
+        CreateDirectoryRecursive("versions/" + versionToDownload)
+        
+        If ReceiveHTTPFile(parseVersionsManifest(GetGadgetState(versionsDownloadGadget), 1, versionToDownload), "versions/" + versionToDownload + "/" + versionToDownload + ".json")
+          DeleteFile(tempDirectory + "alauncher_download_list.txt")
+          listOfFiles = OpenFile(#PB_Any, tempDirectory + "alauncher_download_list.txt")
           
-          CreateDirectoryRecursive("versions/" + versionToDownload)
+          jsonFile = ParseJSON(#PB_Any, fileRead("versions/" + versionToDownload + "/" + versionToDownload + ".json"))
           
-          If ReceiveHTTPFile(parseVersionsManifest(GetGadgetState(versionsDownloadGadget), 1, versionToDownload), "versions/" + versionToDownload + "/" + versionToDownload + ".json")
-            DeleteFile(tempDirectory + "alauncher_download_list.txt")
-            listOfFiles = OpenFile(#PB_Any, tempDirectory + "alauncher_download_list.txt")
+          If jsonFile
+            jsonObject = JSONValue(jsonFile)
             
-            jsonFile = ParseJSON(#PB_Any, fileRead("versions/" + versionToDownload + "/" + versionToDownload + ".json"))
+            assetsIndex = GetJSONString(GetJSONMember(jsonObject, "assets"))
             
-            If jsonFile
-              jsonObject = JSONValue(jsonFile)
+            CreateDirectoryRecursive("assets/indexes")
+            ReceiveHTTPFile(GetJSONString(GetJSONMember(GetJSONMember(jsonObject, "assetIndex"), "url")), "assets/indexes/" + assetsIndex + ".json")
+            
+            loggingMember = GetJSONMember(jsonObject, "logging")
+            
+            If loggingMember
+              loggingClientMember = GetJSONMember(loggingMember, "client")
               
-              assetsIndex = GetJSONString(GetJSONMember(jsonObject, "assets"))
-              
-              CreateDirectoryRecursive("assets/indexes")
-              ReceiveHTTPFile(GetJSONString(GetJSONMember(GetJSONMember(jsonObject, "assetIndex"), "url")), "assets/indexes/" + assetsIndex + ".json")
-              
-              loggingMember = GetJSONMember(jsonObject, "logging")
-              
-              If loggingMember
-                loggingClientMember = GetJSONMember(loggingMember, "client")
+              If loggingClientMember
+                loggingFileMember = GetJSONMember(loggingClientMember, "file")
                 
-                If loggingClientMember
-                  loggingFileMember = GetJSONMember(loggingClientMember, "file")
+                If loggingFileMember
+                  logConfId = GetJSONString(GetJSONMember(loggingFileMember, "id"))
+                  logConfUrl = GetJSONString(GetJSONMember(loggingFileMember, "url"))
+                  logConfSize = GetJSONInteger(GetJSONMember(loggingFileMember, "size"))
                   
-                  If loggingFileMember
-                    logConfId = GetJSONString(GetJSONMember(loggingFileMember, "id"))
-                    logConfUrl = GetJSONString(GetJSONMember(loggingFileMember, "url"))
-                    logConfSize = GetJSONInteger(GetJSONMember(loggingFileMember, "size"))
-                    
-                    WriteStringN(listOfFiles, logConfUrl + "::" + "assets/log_configs/" + logConfId + "::" + logConfSize)
-                    
-                    CreateDirectoryRecursive("assets/log_configs")
-                  EndIf
+                  WriteStringN(listOfFiles, logConfUrl + "::" + "assets/log_configs/" + logConfId + "::" + logConfSize)
+                  
+                  CreateDirectoryRecursive("assets/log_configs")
                 EndIf
               EndIf
-              
-              clientUrl = GetJSONString(GetJSONMember(GetJSONMember(GetJSONMember(jsonObject, "downloads"), "client"), "url"))
-              clientSize = GetJSONInteger(GetJSONMember(GetJSONMember(GetJSONMember(jsonObject, "downloads"), "client"), "size"))
-              
-              WriteStringN(listOfFiles, clientUrl + "::" + "versions/" + versionToDownload + "/" + versionToDownload + ".jar" + "::" + clientSize)
-              
-              FreeJSON(jsonFile)
             EndIf
             
-            jsonFile = ParseJSON(#PB_Any, fileRead("assets/indexes/" + assetsIndex + ".json"))
+            clientUrl = GetJSONString(GetJSONMember(GetJSONMember(GetJSONMember(jsonObject, "downloads"), "client"), "url"))
+            clientSize = GetJSONInteger(GetJSONMember(GetJSONMember(GetJSONMember(jsonObject, "downloads"), "client"), "size"))
             
-            If jsonFile
-              jsonObject = JSONValue(jsonFile)
-              jsonObjectObjects = GetJSONMember(jsonObject, "objects")
-              
-              If ExamineJSONMembers(jsonObjectObjects)
-                While NextJSONMember(jsonObjectObjects)
-                  fileHash = GetJSONString(GetJSONMember(GetJSONMember(jsonObjectObjects, JSONMemberKey(jsonObjectObjects)), "hash"))
-                  fileSize = GetJSONInteger(GetJSONMember(GetJSONMember(jsonObjectObjects, JSONMemberKey(jsonObjectObjects)), "size"))
-                  
-                  WriteStringN(listOfFiles, "https://resources.download.minecraft.net/" + Left(fileHash, 2) + "/" + fileHash + "::" + "assets/objects/" + Left(fileHash, 2) + "/" + fileHash + "::" + fileSize)
-                Wend
-              EndIf
-              
-              FreeJSON(jsonFile)
+            WriteStringN(listOfFiles, clientUrl + "::" + "versions/" + versionToDownload + "/" + versionToDownload + ".jar" + "::" + clientSize)
+            
+            FreeJSON(jsonFile)
+          EndIf
+          
+          jsonFile = ParseJSON(#PB_Any, fileRead("assets/indexes/" + assetsIndex + ".json"))
+          
+          If jsonFile
+            jsonObject = JSONValue(jsonFile)
+            jsonObjectObjects = GetJSONMember(jsonObject, "objects")
+            
+            If ExamineJSONMembers(jsonObjectObjects)
+              While NextJSONMember(jsonObjectObjects)
+                fileHash = GetJSONString(GetJSONMember(GetJSONMember(jsonObjectObjects, JSONMemberKey(jsonObjectObjects)), "hash"))
+                fileSize = GetJSONInteger(GetJSONMember(GetJSONMember(jsonObjectObjects, JSONMemberKey(jsonObjectObjects)), "size"))
+                
+                WriteStringN(listOfFiles, "https://resources.download.minecraft.net/" + Left(fileHash, 2) + "/" + fileHash + "::" + "assets/objects/" + Left(fileHash, 2) + "/" + fileHash + "::" + fileSize)
+              Wend
             EndIf
             
-            CloseFile(listOfFiles)
-            
-            parseLibraries(versionToDownload, 1)
-            
-            DisableGadget(playButton, 1)
-            progressWindow(versionToDownload)
-            
-            downloadThread = CreateThread(@downloadFiles(), GetGadgetState(downloadAllFilesGadget))
-          Else
-            MessageRequester(stringNoInternetTitle, stringNoInternet)
-          EndIf
-        Case settingsButton
-          DisableGadget(settingsButton, 1)
-          
-          If OpenWindow(3, #PB_Ignore, #PB_Ignore, 395, 250, stringSettingsWindowTitle)
-            
-            CheckBoxGadget(689, 5, 5, 340, 20, stringKeepLauncherOpenGadget)
-            keepLauncherOpenGadget = 689
-            SetGadgetState(keepLauncherOpenGadget, ReadPreferenceInteger("KeepLauncherOpen", keepLauncherOpenDefault))
-            
-            CheckBoxGadget(777, 5, 25, 320, 20, stringLauncherLayoutChangeGadget)
-            LauncherLayoutChangeGadget = 777
-            GadgetToolTip(LauncherLayoutChangeGadget, descLauncherLayoutChangeGadget)
-            SetGadgetState(LauncherLayoutChangeGadget, ReadPreferenceInteger("LauncherLayoutChange", LauncherLayoutChange))
-            
-            saveLaunchStringGadget = CheckBoxGadget(#PB_Any, 5, 45, 340, 20, stringSaveLaunchStringGadget)
-            GadgetToolTip(saveLaunchStringGadget, descSaveLaunchStringGadget)
-            SetGadgetState(saveLaunchStringGadget, ReadPreferenceInteger("SaveLaunchString", saveLaunchStringDefault))
-            
-            downloadMissingLibrariesGadget = CheckBoxGadget(#PB_Any, 5, 65, 340, 20, stringDownloadMissingLibrariesGadget)
-            SetGadgetState(downloadMissingLibrariesGadget, ReadPreferenceInteger("DownloadMissingLibs", downloadMissingLibrariesDefault))
-            
-            CheckBoxGadget(311, 5, 85, 340, 20, stringAsyncDownloadGadget)
-            asyncDownloadGadget = 311
-            SetGadgetState(asyncDownloadGadget, ReadPreferenceInteger("AsyncDownload", asyncDownloadDefault))
-            
-            downloadThreadsGadget = StringGadget(#PB_Any, 5, 108, 385, 20, ReadPreferenceString("DownloadThreads", Str(downloadThreadsAmountDefault)), #PB_String_Numeric)
-            GadgetToolTip(downloadThreadsGadget, stringDownloadThreadsGadget)
-            
-            SetGadgetAttribute(downloadThreadsGadget, #PB_String_MaximumLength, 3)
-            
-            CheckBoxGadget(312, 5, 130, 385, 15, stringUseCustomJava)
-            useCustomJavaGadget = 312
-            GadgetToolTip(useCustomJavaGadget, descUseCustomJava)
-            SetGadgetState(useCustomJavaGadget, ReadPreferenceInteger("UseCustomJava", useCustomJavaDefault))
-            
-            javaPathGadget = StringGadget(#PB_Any, 5, 153, 385, 20, ReadPreferenceString("JavaPath", javaBinaryPathDefault))
-            GadgetToolTip(javaPathGadget, stringJavaPathGadget)
-            
-            CheckBoxGadget(313, 5, 175, 385, 15, stringUseCustomParamsGadget)
-            useCustomParamsGadget = 313
-            GadgetToolTip(useCustomParamsGadget, stringUseCustomParamsGadget)
-            SetGadgetState(useCustomParamsGadget, ReadPreferenceInteger("UseCustomParameters", useCustomParamsDefault))
-            
-            argsGadget = StringGadget(#PB_Any, 5, 195, 385, 20, ReadPreferenceString("LaunchArguments", customLaunchArgumentsDefault))
-            GadgetToolTip(argsGadget, descArgsGadget)
-            
-            saveSettingsButton = ButtonGadget(#PB_Any, 5, 220, 385, 20, stringSaveSettingsButton)
-            
-            DisableGadget(downloadThreadsGadget, Bool(Not GetGadgetState(asyncDownloadGadget)))
-            DisableGadget(javaPathGadget, Bool(Not GetGadgetState(useCustomJavaGadget)))
-            DisableGadget(argsGadget, Bool(Not GetGadgetState(useCustomParamsGadget)))
-          EndIf
-        Case useCustomParamsGadget
-          DisableGadget(argsGadget, Bool(Not GetGadgetState(useCustomParamsGadget)))
-        Case asyncDownloadGadget
-          DisableGadget(downloadThreadsGadget, Bool(Not GetGadgetState(asyncDownloadGadget)))
-        Case useCustomJavaGadget
-          DisableGadget(javaPathGadget, Bool(Not GetGadgetState(useCustomJavaGadget)))
-        Case saveSettingsButton
-          If GetGadgetText(downloadThreadsGadget) = "0" : SetGadgetText(downloadThreadsGadget, "5") : EndIf
-          
-          WritePreferenceInteger("DownloadMissingLibs", GetGadgetState(downloadMissingLibrariesGadget))
-          WritePreferenceInteger("AsyncDownload", GetGadgetState(asyncDownloadGadget))
-          WritePreferenceInteger("SaveLaunchString", GetGadgetState(saveLaunchStringGadget))
-          WritePreferenceInteger("UseCustomJava", GetGadgetState(useCustomJavaGadget))
-          WritePreferenceInteger("UseCustomParameters", GetGadgetState(useCustomParamsGadget))
-          WritePreferenceInteger("KeepLauncherOpen", GetGadgetState(keepLauncherOpenGadget))
-          WritePreferenceInteger("LauncherLayoutChange", GetGadgetState(LauncherLayoutChangeGadget))
-          
-          If GetGadgetState(useCustomJavaGadget)
-            WritePreferenceString("JavaPath", GetGadgetText(javaPathGadget))
+            FreeJSON(jsonFile)
           EndIf
           
-          If GetGadgetState(asyncDownloadGadget)
-            WritePreferenceString("DownloadThreads", GetGadgetText(downloadThreadsGadget))
-          EndIf
+          CloseFile(listOfFiles)
           
-          If GetGadgetState(useCustomParamsGadget)
-            WritePreferenceString("LaunchArguments", GetGadgetText(argsGadget))
-          EndIf
+          parseLibraries(versionToDownload, 1)
           
-          downloadThreadsAmount = Val(GetGadgetText(downloadThreadsGadget))
-          asyncDownload = GetGadgetState(asyncDownloadGadget)
-          DisableGadget(settingsButton, 0)
+          DisableGadget(playButton, 1)
+          progressWindow(versionToDownload)
           
-          CloseWindow(3)
-        Case downloadOkButton
-          CloseWindow(progressWindow)
-          
-          If IsGadget(playButton) : DisableGadget(playButton, 0) : EndIf
-          If IsGadget(downloadVersionButton) : DisableGadget(downloadVersionButton, 0) : EndIf
-        Case creditsButton
-          MessageRequester("Credits", stringCreditsList)
-      EndSelect
-    EndIf
-    
-    If #PB_Event_LeftClick
-      WritePreferenceString("Name", GetGadgetText(nameGadget))
-      WritePreferenceString("Ram", GetGadgetText(ramGadget))
-      WritePreferenceString("ChosenVer", GetGadgetText(versionsGadget))
-      WritePreferenceInteger("Lang", GetGadgetState(languageList))
-    EndIf
-    
-    If Event = #PB_Event_CloseWindow
-      If EventWindow() = 1
-        WritePreferenceInteger("ShowAllVersions", GetGadgetState(versionsTypeGadget))
-        WritePreferenceInteger("RedownloadFiles", GetGadgetState(downloadAllFilesGadget))
-        
-        CloseWindow(1)
-        
-        DisableGadget(downloadButton, 0)
-      ElseIf EventWindow() = progressWindow
-        If Not IsThread(downloadThread)
-          CloseWindow(progressWindow)
-          
-          If IsGadget(playButton) : DisableGadget(playButton, 0) : EndIf
-          If IsGadget(downloadVersionButton) : DisableGadget(downloadVersionButton, 0) : EndIf
+          downloadThread = CreateThread(@downloadFiles(), GetGadgetState(downloadAllFilesGadget))
         Else
-          MessageRequester(stringDesperateTitle, stringDesperate)
+          MessageRequester(stringNoInternetTitle, stringNoInternet)
         EndIf
-      ElseIf EventWindow() = 3
-        CloseWindow(3)
+      Case settingsButton
+        DisableGadget(settingsButton, 1)
         
+        If OpenWindow(3, #PB_Ignore, #PB_Ignore, 395, 250, stringSettingsWindowTitle)
+          
+          CheckBoxGadget(689, 5, 5, 340, 20, stringKeepLauncherOpenGadget)
+          keepLauncherOpenGadget = 689
+          SetGadgetState(keepLauncherOpenGadget, ReadPreferenceInteger("KeepLauncherOpen", keepLauncherOpenDefault))
+          
+          CheckBoxGadget(777, 5, 25, 320, 20, stringLauncherLayoutChangeGadget)
+          LauncherLayoutChangeGadget = 777
+          GadgetToolTip(LauncherLayoutChangeGadget, descLauncherLayoutChangeGadget)
+          SetGadgetState(LauncherLayoutChangeGadget, ReadPreferenceInteger("LauncherLayoutChange", LauncherLayoutChange))
+          
+          saveLaunchStringGadget = CheckBoxGadget(#PB_Any, 5, 45, 340, 20, stringSaveLaunchStringGadget)
+          GadgetToolTip(saveLaunchStringGadget, descSaveLaunchStringGadget)
+          SetGadgetState(saveLaunchStringGadget, ReadPreferenceInteger("SaveLaunchString", saveLaunchStringDefault))
+          
+          downloadMissingLibrariesGadget = CheckBoxGadget(#PB_Any, 5, 65, 340, 20, stringDownloadMissingLibrariesGadget)
+          SetGadgetState(downloadMissingLibrariesGadget, ReadPreferenceInteger("DownloadMissingLibs", downloadMissingLibrariesDefault))
+          
+          CheckBoxGadget(311, 5, 85, 340, 20, stringAsyncDownloadGadget)
+          asyncDownloadGadget = 311
+          SetGadgetState(asyncDownloadGadget, ReadPreferenceInteger("AsyncDownload", asyncDownloadDefault))
+          
+          downloadThreadsGadget = StringGadget(#PB_Any, 5, 108, 385, 20, ReadPreferenceString("DownloadThreads", Str(downloadThreadsAmountDefault)), #PB_String_Numeric)
+          GadgetToolTip(downloadThreadsGadget, stringDownloadThreadsGadget)
+          
+          SetGadgetAttribute(downloadThreadsGadget, #PB_String_MaximumLength, 3)
+          
+          CheckBoxGadget(312, 5, 130, 385, 15, stringUseCustomJava)
+          useCustomJavaGadget = 312
+          GadgetToolTip(useCustomJavaGadget, descUseCustomJava)
+          SetGadgetState(useCustomJavaGadget, ReadPreferenceInteger("UseCustomJava", useCustomJavaDefault))
+          
+          javaPathGadget = StringGadget(#PB_Any, 5, 153, 385, 20, ReadPreferenceString("JavaPath", javaBinaryPathDefault))
+          GadgetToolTip(javaPathGadget, stringJavaPathGadget)
+          
+          CheckBoxGadget(313, 5, 175, 385, 15, stringUseCustomParamsGadget)
+          useCustomParamsGadget = 313
+          GadgetToolTip(useCustomParamsGadget, stringUseCustomParamsGadget)
+          SetGadgetState(useCustomParamsGadget, ReadPreferenceInteger("UseCustomParameters", useCustomParamsDefault))
+          
+          argsGadget = StringGadget(#PB_Any, 5, 195, 385, 20, ReadPreferenceString("LaunchArguments", customLaunchArgumentsDefault))
+          GadgetToolTip(argsGadget, descArgsGadget)
+          
+          saveSettingsButton = ButtonGadget(#PB_Any, 5, 220, 385, 20, stringSaveSettingsButton)
+          
+          DisableGadget(downloadThreadsGadget, Bool(Not GetGadgetState(asyncDownloadGadget)))
+          DisableGadget(javaPathGadget, Bool(Not GetGadgetState(useCustomJavaGadget)))
+          DisableGadget(argsGadget, Bool(Not GetGadgetState(useCustomParamsGadget)))
+        EndIf
+      Case useCustomParamsGadget
+        DisableGadget(argsGadget, Bool(Not GetGadgetState(useCustomParamsGadget)))
+      Case asyncDownloadGadget
+        DisableGadget(downloadThreadsGadget, Bool(Not GetGadgetState(asyncDownloadGadget)))
+      Case useCustomJavaGadget
+        DisableGadget(javaPathGadget, Bool(Not GetGadgetState(useCustomJavaGadget)))
+      Case saveSettingsButton
+        If GetGadgetText(downloadThreadsGadget) = "0" : SetGadgetText(downloadThreadsGadget, "5") : EndIf
+        
+        WritePreferenceInteger("DownloadMissingLibs", GetGadgetState(downloadMissingLibrariesGadget))
+        WritePreferenceInteger("AsyncDownload", GetGadgetState(asyncDownloadGadget))
+        WritePreferenceInteger("SaveLaunchString", GetGadgetState(saveLaunchStringGadget))
+        WritePreferenceInteger("UseCustomJava", GetGadgetState(useCustomJavaGadget))
+        WritePreferenceInteger("UseCustomParameters", GetGadgetState(useCustomParamsGadget))
+        WritePreferenceInteger("KeepLauncherOpen", GetGadgetState(keepLauncherOpenGadget))
+        WritePreferenceInteger("LauncherLayoutChange", GetGadgetState(LauncherLayoutChangeGadget))
+        
+        If GetGadgetState(useCustomJavaGadget)
+          WritePreferenceString("JavaPath", GetGadgetText(javaPathGadget))
+        EndIf
+        
+        If GetGadgetState(asyncDownloadGadget)
+          WritePreferenceString("DownloadThreads", GetGadgetText(downloadThreadsGadget))
+        EndIf
+        
+        If GetGadgetState(useCustomParamsGadget)
+          WritePreferenceString("LaunchArguments", GetGadgetText(argsGadget))
+        EndIf
+        
+        downloadThreadsAmount = Val(GetGadgetText(downloadThreadsGadget))
+        asyncDownload = GetGadgetState(asyncDownloadGadget)
         DisableGadget(settingsButton, 0)
-      EndIf
-    EndIf
-    
-  Until Event = #PB_Event_CloseWindow And EventWindow() = 0
+        
+        CloseWindow(3)
+      Case downloadOkButton
+        CloseWindow(progressWindow)
+        
+        If IsGadget(playButton) : DisableGadget(playButton, 0) : EndIf
+        If IsGadget(downloadVersionButton) : DisableGadget(downloadVersionButton, 0) : EndIf
+      Case creditsButton
+        MessageRequester("Credits", stringCreditsList)
+    EndSelect
+  EndIf
   
-  DeleteFile(tempDirectory + "acid_download_list.txt")
+  If #PB_Event_LeftClick
+    WritePreferenceString("Name", GetGadgetText(nameGadget))
+    WritePreferenceString("Ram", GetGadgetText(ramGadget))
+    WritePreferenceString("ChosenVer", GetGadgetText(versionsGadget))
+    WritePreferenceInteger("Lang", GetGadgetState(languageList))
+  EndIf
+  
+  If Event = #PB_Event_CloseWindow
+    If EventWindow() = 1
+      WritePreferenceInteger("ShowAllVersions", GetGadgetState(versionsTypeGadget))
+      WritePreferenceInteger("RedownloadFiles", GetGadgetState(downloadAllFilesGadget))
+      
+      CloseWindow(1)
+      
+      DisableGadget(downloadButton, 0)
+    ElseIf EventWindow() = progressWindow
+      If Not IsThread(downloadThread)
+        CloseWindow(progressWindow)
+        
+        If IsGadget(playButton) : DisableGadget(playButton, 0) : EndIf
+        If IsGadget(downloadVersionButton) : DisableGadget(downloadVersionButton, 0) : EndIf
+      Else
+        MessageRequester(stringDesperateTitle, stringDesperate)
+      EndIf
+    ElseIf EventWindow() = 3
+      CloseWindow(3)
+      
+      DisableGadget(settingsButton, 0)
+    EndIf
+  EndIf
+  
+Until Event = #PB_Event_CloseWindow And EventWindow() = 0
+
+DeleteFile(tempDirectory + "acid_download_list.txt")
 EndIf
 
 Procedure findInstalledVersions()
@@ -743,6 +746,8 @@ Procedure findInstalledVersions()
   If Not CountGadgetItems(versionsGadget)
     DisableGadget(playButton, 1)
     DisableGadget(versionsGadget, 1) : AddGadgetItem(versionsGadget, 0, "Minecraft no encontrado") : SetGadgetState(versionsGadget, 0)
+  Else
+    generateProfileJson()
   EndIf
 EndProcedure
 
@@ -1110,25 +1115,25 @@ Procedure generateProfileJson()
   Protected.i file
   Protected.i lastProfilesJsonSize = ReadPreferenceInteger("LastProfilesJsonSize", 89)
   Protected.i fileSize = FileSize(fileName)
-
+  
   If fileSize <= 0
     DeleteFile(fileName)
     file = OpenFile(#PB_Any, fileName)
-
+    
     If file
       WriteString(file, "{ " + Chr(34) + "profiles" + Chr(34) + ": { " + Chr(34) + "justProfile" + Chr(34) + ": { " + Chr(34) + "name" + Chr(34) + ": " + Chr(34) + "justProfile" + Chr(34) + ", ")
       WriteString(file, Chr(34) + "lastVersionId" + Chr(34) + ": " + Chr(34) + "1.12.2" + Chr(34) + " } } }" + #CRLF$)
-
+      
       CloseFile(file)
     EndIf
   EndIf
-
+  
   fileSize = FileSize(fileName)
-
+  
   If fileSize <> lastProfilesJsonSize
     forceDownloadMissingLibraries = 1
   EndIf
-
+  
   WritePreferenceInteger("LastProfilesJsonSize", fileSize)
 EndProcedure
 
@@ -1169,3 +1174,13 @@ Procedure.s removeSpacesFromVersionName(clientVersion.s)
   
   ProcedureReturn newVersionName
 EndProcedure
+; IDE Options = PureBasic 6.20 (Linux - x64)
+; CursorPosition = 484
+; FirstLine = 454
+; Folding = --
+; Optimizer
+; EnableThread
+; EnableXP
+; DPIAware
+; Executable = ../../home/liam/Downloads/dsadsad/AcidLauncherv2.0.1.x86_64
+; Compiler = PureBasic 6.20 (Linux - x64)
