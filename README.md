@@ -44,7 +44,7 @@ Check the [**Releases**](https://github.com/stuxvii/acid-launcher/releases) page
 ## Special thanks to
 - skvlk78, who contributed to the French translation,
 - bozg, who contributed to the Portuguese tranlation,
-- And [mewity](https://github.com/daodov), who contributed to the Ukranian translation.
+- And mewity, who contributed to the Ukranian translation.
 ## License
 
 [GPLv3](https://github.com/stuxvii/acid-launcher/blob/master/LICENSE.txt)
