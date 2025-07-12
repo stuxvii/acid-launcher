@@ -18,7 +18,7 @@ Fast, lightweight and easy way to launch your favorite LWGJL cube game; Natively
 * Downloads missing libraries
 * Doesn't require Minecraft account
 * Doesn't require Java to work
-* Supports launching Minecraft with Adoptium's Java Runtime 
+* Supports launching Minecraft with Adoptium's Java Runtime (only windows)
 * Can work fully offline
 * Auto-saves your changes automagically
 * Has a new layout to acommodate language integration and make the UX more pleasant, but allows changing back to the old one
