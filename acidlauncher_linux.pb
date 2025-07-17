@@ -1174,13 +1174,3 @@ Procedure.s removeSpacesFromVersionName(clientVersion.s)
   
   ProcedureReturn newVersionName
 EndProcedure
-; IDE Options = PureBasic 6.20 (Linux - x64)
-; CursorPosition = 484
-; FirstLine = 454
-; Folding = --
-; Optimizer
-; EnableThread
-; EnableXP
-; DPIAware
-; Executable = ../../home/liam/Downloads/dsadsad/AcidLauncherv2.0.1.x86_64
-; Compiler = PureBasic 6.20 (Linux - x64)
