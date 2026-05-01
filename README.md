@@ -1,4 +1,5 @@
 # This is a fork of [Minecraft Vortex Launcher](https://github.com/Kron4ek/minecraft-vortex-launcher) and is not endorsed by it. 
+# This is really old and poorly put together and very skidded. please dont use this. it sucks. im only keeping it up because it's adorable
 ## Acid Launcher
 
 Fast, lightweight and easy way to launch your favorite LWGJL cube game; Natively available for Linux and Windows.
